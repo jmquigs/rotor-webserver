@@ -67,7 +67,7 @@ impl<C, H: Handler<C>> Protocol<C> for Client<C, H> {
                     .replace("$Content-Length$", &cl.to_string());
 
                 let out = transport.output();
-                write!(out, "{}", res);
+                let _ = write!(out, "{}", res).map_err(|e| println!("failed write: {}", e));
 
                 Async::Continue(Client::KeepAlive, ())
 

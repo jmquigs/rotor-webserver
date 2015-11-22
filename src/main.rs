@@ -32,6 +32,8 @@ impl<C:Context> http::Handler<C> for HelloWorld {
     }
 }
 
+// test with: wrk -t4 -c400 -d30s http://127.0.0.1:8888/index.html
+
 fn single_threaded() {
     println!("single threaded");
     let mut event_loop = mio::EventLoop::new().unwrap();
@@ -64,6 +66,7 @@ fn multi_threaded() {
         }
         sock.bind(&"127.0.0.1:8888".parse().unwrap()).unwrap();
         let listener = sock.listen(4096).unwrap();
+        // This works, but only one thread is actually used. so WTF
         children.push(thread::spawn(move || {
             let mut event_loop = mio::EventLoop::new().unwrap();
             let mut handler = rotor::Handler::new(ContextData {
@@ -87,6 +90,4 @@ fn main() {
     } else {
         multi_threaded();
     }
-
-
 }
