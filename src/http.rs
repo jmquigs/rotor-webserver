@@ -1,4 +1,6 @@
-// mostly pirated from rotor-http
+
+// This is mostly ripped from rotor-http
+
 use std::marker::PhantomData;
 
 use rotor::transports::stream::{Transport, Protocol};
@@ -21,9 +23,6 @@ Content-Length: $Content-Length$
 $Content$";
 
 pub trait Handler<C> {
-    fn dummy(_ctx: &mut C) {
-
-    }
 }
 
 pub enum Client<C, H: Handler<C>> {
@@ -53,16 +52,16 @@ impl<C, H: Handler<C>> Protocol<C> for Client<C, H> {
     {
         use self::Client::*;
         match self {
-            Initial | KeepAlive => { //| ReadHeaders  =>
+            Initial | KeepAlive => {
 
-                //thread::sleep_ms(1);
+                //thread::sleep_ms(1);  // simulate "work"
 
                 // don't even bother parsing the body
                 let content = String::from("Have a nice day.");
                 let cl = content.to_owned().into_bytes().len(); // TODO: stupid clone
 
                 let res = String::from(HTTP_RES)
-                    //.replace("$Connection$","Close")
+                    .replace("$Connection$","Keep-Alive")
                     .replace("$Content$", &content)
                     .replace("$Content-Length$", &cl.to_string());
 
@@ -70,8 +69,6 @@ impl<C, H: Handler<C>> Protocol<C> for Client<C, H> {
                 let _ = write!(out, "{}", res).map_err(|e| println!("failed write: {}", e));
 
                 Async::Continue(Client::KeepAlive, ())
-
-
             }
             _ => unimplemented!()
         }

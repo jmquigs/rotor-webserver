@@ -1,35 +1,29 @@
 extern crate rotor;
 extern crate mio;
 extern crate libc;
+extern crate net2;
 
 use std::env;
 use std::thread;
-use std::os::unix::io::AsRawFd;
 
-struct ContextData {
-    dummy: u32
-}
+use net2::TcpBuilder;
+use net2::unix::UnixTcpBuilderExt;
 
 use mio::tcp::TcpListener;
 
 mod http;
-
 use http::HttpServer;
 
 struct HelloWorld;
+struct ContextData;
 
 trait Context {
-
 }
 
 impl Context for ContextData {
-
 }
 
 impl<C:Context> http::Handler<C> for HelloWorld {
-    fn dummy(_ctx: &mut C) {
-
-    }
 }
 
 // test with: wrk -t4 -c400 -d30s http://127.0.0.1:8888/index.html
@@ -37,9 +31,7 @@ impl<C:Context> http::Handler<C> for HelloWorld {
 fn single_threaded() {
     println!("single threaded");
     let mut event_loop = mio::EventLoop::new().unwrap();
-    let mut handler = rotor::Handler::new(ContextData {
-        dummy: 0,
-    }, &mut event_loop);
+    let mut handler = rotor::Handler::new(ContextData, &mut event_loop);
     handler.add_root(&mut event_loop,
         HttpServer::<_, HelloWorld>::new(
             TcpListener::bind(
@@ -53,33 +45,32 @@ fn multi_threaded() {
         .parse().unwrap();
     println!("using {} threads", threads);
     let mut children = Vec::new();
+
+    let tcp = TcpBuilder::new_v4().unwrap();
+    tcp.reuse_address(true).unwrap();
+    tcp.reuse_port(true).unwrap();
+    let addr = "127.0.0.1:8888";
+    println!("Listing on {}", addr);
+    tcp.bind(&addr).unwrap();
+    let listener = tcp.listen(4096).unwrap();
+    let listener = TcpListener::from_listener(listener,&"127.0.0.1:8888".parse().unwrap()).unwrap();
+
     for _ in 0..threads {
-        let sock = mio::tcp::TcpSocket::v4().unwrap();
-        let one = 1i32;
-        //sock.set_reuseport(true).unwrap(); // in mio master, but not in crate version
-        //sock.set_reuseaddr(true).unwrap(); // wrong one
-        unsafe {
-            assert!(libc::setsockopt(
-                sock.as_raw_fd(), libc::SOL_SOCKET,
-                libc::SO_REUSEPORT,
-                &one as *const libc::c_int as *const libc::c_void, 4) == 0);
-        }
-        sock.bind(&"127.0.0.1:8888".parse().unwrap()).unwrap();
-        let listener = sock.listen(4096).unwrap();
-        // This works, but only one thread is actually used. so WTF
+        let listener = listener.try_clone().unwrap();
+
         children.push(thread::spawn(move || {
             let mut event_loop = mio::EventLoop::new().unwrap();
-            let mut handler = rotor::Handler::new(ContextData {
-                dummy: 0,
-            }, &mut event_loop);
+            let mut handler = rotor::Handler::new(ContextData, &mut event_loop);
             handler.add_root(&mut event_loop,
                 HttpServer::<_, HelloWorld>::new(listener));
             event_loop.run(&mut handler).unwrap();
         }));
     }
+
     for child in children {
         child.join().unwrap();
     }
+    println!("threads joined");
 }
 fn main() {
     let use_st:u32 = env::var("ST").unwrap_or("0".to_string())
