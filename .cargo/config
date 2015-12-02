@@ -1,1 +1,4 @@
-paths = ["/Users/john/Dev/Rust/rotor"]
+paths = [
+  #"/Users/john/Dev/Rust/rotor",
+  #"/Users/john/Dev/Rust/mio"
+]

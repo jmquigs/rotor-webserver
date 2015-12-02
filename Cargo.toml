@@ -4,6 +4,16 @@ version = "0.1.0"
 authors = ["John Quigley <jmquigs@gmail.com>"]
 
 [dependencies]
-rotor = "*"
-mio = "*"
+#rotor = "*"
+#mio = "*"
 libc = "*"
+net2 = "*"
+
+[dependencies.mio]
+git = "https://github.com/carllerche/mio"
+# keep this in sync with what my update-mio uses below
+rev = "ac165e0"
+
+[dependencies.rotor]
+git = "https://github.com/jmquigs/rotor"
+branch = "update-mio"
